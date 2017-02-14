@@ -8,8 +8,8 @@
         http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit-1.6.xsd">
 
 
-    <int-amqp:channel id="pollableChannel" message-driven="false" />
+    <int-amqp:channel id="pollableChannel" message-driven="false" connection-factory="connectionFactory" />
 
-    <!-- Line causing the issue <rabbit:connection-factory id="connectionFactory" host="${rabbitmq.host}" /> -->
+    <rabbit:connection-factory id="connectionFactory" host="${rabbitmq.host}" />
 
 </beans>
