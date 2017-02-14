@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+  http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+  http://www.springframework.org/schema/rabbit
+  http://www.springframework.org/schema/rabbit/spring-rabbit-1.6.xsd">
+
+    <rabbit:connection-factory id="connectionFactory" host="${rabbitmq.host}" />
+
+    <rabbit:template id="amqpTemplate" connection-factory="connectionFactory" />
+
+    <!-- Start of Queues -->
+    <rabbit:queue name="Action.Field" durable="true">
+        <rabbit:queue-arguments value-type="java.lang.String">
+            <entry key="x-dead-letter-exchange" value="action-deadletter-exchange" />
+            <entry key="x-dead-letter-routing-key" value="Action.Field.binding" />
+        </rabbit:queue-arguments>
+    </rabbit:queue>
+
+    <rabbit:queue name="Action.FieldDLQ" durable="true" />
+
+    <rabbit:queue name="Action.InvalidActionInstructions" durable="true" />
+
+    <rabbit:queue name="Action.Feedback" durable="true" />
+
+    <rabbit:queue name="Action.DrsGatewayPollerErrors" durable="true" />
+    <!-- End of Queues -->
+
+    <!-- Start of Exchanges -->
+    <rabbit:direct-exchange name="action-outbound-exchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="Action.Feedback" key="Action.Feedback.binding" />
+            <rabbit:binding queue="Action.Field" key="Action.Field.binding" />
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <rabbit:direct-exchange name="action-deadletter-exchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="Action.FieldDLQ" key="Action.Field.binding" />
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <rabbit:direct-exchange name="action-invalid-exchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="Action.InvalidActionInstructions" key="Action.ActionInstruction.binding" />
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <rabbit:direct-exchange name="action-error-exchange">
+        <rabbit:bindings>
+            <rabbit:binding queue="Action.DrsGatewayPollerErrors" key="Action.DrsGatewayPollerErrors.binding" />
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+    <!-- End of Exchanges -->
+
+</beans>
+
+

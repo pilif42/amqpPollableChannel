@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-amqp="http://www.springframework.org/schema/integration/amqp"
+       xmlns:int-xml="http://www.springframework.org/schema/integration/xml"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+  http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+  http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+  http://www.springframework.org/schema/integration/amqp http://www.springframework.org/schema/integration/amqp/spring-integration-amqp.xsd
+  http://www.springframework.org/schema/integration/xml
+  http://www.springframework.org/schema/integration/xml/spring-integration-xml.xsd">
+
+    <bean id="transactionManager" class="org.springframework.integration.transaction.PseudoTransactionManager" />
+
+    <bean id="actionInstructionListenerContainer" class="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer">
+        <property name="connectionFactory" ref="connectionFactory" />
+        <property name="queueNames" value="Action.Field" />
+        <property name="concurrentConsumers" value="${messaging.consumingThreads}" />
+        <property name="prefetchCount" value="${messaging.prefetchCount}" />
+        <property name="txSize" value="${messaging.prefetchCount}" />
+        <property name="channelTransacted" value="true" />
+        <property name="transactionManager" ref="transactionManager" />
+    </bean>
+
+    <!-- Xml msg is taken off the queue Action.Field and put on the channel actionInstructionXml -->
+    <int:channel id="actionInstructionXml" />
+    <bean id="simpleMessageConverter" class="org.springframework.amqp.support.converter.SimpleMessageConverter" />
+    <int-amqp:inbound-channel-adapter id="actionInstructionInboundAmqp" listener-container="actionInstructionListenerContainer"
+                                      message-converter="simpleMessageConverter" channel="actionInstructionXml" />
+
+    <!-- Xml validated against the inbound schema -->
+    <int:channel id="actionInstructionInvalidXml" />
+    <int-amqp:outbound-channel-adapter id="invalidActionInstructionOutboundAmqp" channel="actionInstructionInvalidXml" exchange-name="action-invalid-exchange" routing-key="Action.ActionInstruction.binding" />
+    <!-- Option to be used in Debug/Test: throw-exception-on-rejection="true" -->
+    <int-xml:validating-filter id="actionInstructionValidator" input-channel="actionInstructionXml"
+                               output-channel="actionInstructionXmlValid" schema-location="classpath:xsd/actionInstruction.xsd" discard-channel="actionInstructionInvalidXml"/>
+
+    <!-- The now validated xml is transformed into the jaxb generated object model -->
+    <!-- To mark the channel as "pollable", set the "message-driven" property to "false" -->
+    <int-amqp:channel id="actionInstructionTransformed" message-driven="false" />
+    <int-xml:unmarshalling-transformer
+            input-channel="actionInstructionXmlValid" output-channel="actionInstructionTransformed"
+            unmarshaller="actionInstructionMarshaller" />
+
+    <!-- Start of the poller section -->
+    <int:channel id="drsGatewayPollerError" />
+    <int-amqp:outbound-channel-adapter id="drsGatewayPollerErrorOutboundAmqp" channel="drsGatewayPollerError" exchange-name="action-error-exchange" routing-key="Action.DrsGatewayPollerErrors.binding" />
+
+    <bean id="customPeriodicTrigger" class="uk.gov.ons.ctp.response.kirona.drs.utility.CustomPeriodicTrigger" />
+
+    <bean id="customTaskExecutor" class="org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor">
+        <property name="corePoolSize" value="${messaging.consumingThreads}" />
+    </bean>
+
+    <int:poller id="customPoller" default="true" trigger="customPeriodicTrigger" task-executor="customTaskExecutor" max-messages-per-poll="${poller.maxMessagesPerPoll}" error-channel="drsGatewayPollerError">
+        <int:transactional propagation="REQUIRED" read-only="true" transaction-manager="transactionManager"/>
+    </int:poller>
+    <!-- End of the poller section -->
+
+    <!-- Finally see the @ServiceActivator(inputChannel="actionInstructionTransformed") -->
+
+    <!-- Start of section to deal with retries and DLQ after max attempts -->
+    <int:channel id="actionInstructionDlqChannel" />
+    <int:handler-retry-advice id="actionInstructionRetryAdvice" recovery-channel="actionInstructionDlqChannel" max-attempts="${messaging.maxAttempts}"/>
+
+    <int:channel id="actionInstructionDlqInterimChannel" />
+    <int:transformer input-channel="actionInstructionDlqChannel" output-channel="actionInstructionDlqInterimChannel" expression="payload.failedMessage.payload" />
+
+    <int:channel id="actionInstructionDlqChannelXml" />
+    <int-xml:marshalling-transformer
+            input-channel="actionInstructionDlqInterimChannel" output-channel="actionInstructionDlqChannelXml"
+            marshaller="actionInstructionMarshaller"
+            result-transformer="actionInstructionOutboundTransformer"/>
+    <bean id="actionInstructionOutboundTransformer" class="org.springframework.integration.xml.transformer.ResultToStringTransformer" />
+
+    <int-amqp:outbound-channel-adapter id="actionInstructionDlqAmqp" channel="actionInstructionDlqChannelXml" exchange-name="action-deadletter-exchange" routing-key="Action.Notify.binding" />
+    <!-- End of section to deal with retries and DLQ after max attempts -->
+</beans>

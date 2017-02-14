@@ -1,0 +1,110 @@
+info:
+  contactEmail: philippe.brossier@ons.gov.uk
+  version: ${project.version}
+  commit: ${buildNumber}
+  branch: ${scmBranch}
+  buildTime: ${timestamp}
+
+security:
+  basic:
+    enabled: false
+  user:
+    name: gateway
+    password: ctp
+
+management:
+  port: 8231
+  context-path: /mgmt
+  security:
+    role: SUPERUSER
+    enabled: false
+
+server:
+  port: 8131
+  servlet-path: /
+
+endpoints:
+  enabled: true
+  sensitive: true
+
+spring:
+  output:
+    ansi:
+      enabled: never
+  application:
+    name: ONS Kirona DRS Gateway
+
+  sleuth:
+    sampler:
+      percentage: 1
+
+  zipkin:
+    enabled: false # true is the default to post to a Zipkin server at 9411
+
+redelivery-policy:
+  maxRedeliveries: 10
+  initialRedeliveryDelay: 1000
+  redeliveryDelay: 1000
+
+# logging config here as a reminder as to how to override logback from cmd line
+# ie -Dlogging.level.org.springframework=DEBUG
+logging:
+  level:
+    org.springframework: warn
+    uk.gov.ons.ctp: debug
+
+drs:
+  contractSsd: SSD
+  finalTaskCompletionStatuses:
+    NOADDRESS: REQUEST_COMPLETED_DEACTIVATE
+    COMMUNAL: REQUEST_COMPLETED_DEACTIVATE
+    DEMOLISHED: REQUEST_COMPLETED_DEACTIVATE
+    DERELICT: REQUEST_COMPLETED_DEACTIVATE
+    DUPLICATE: REQUEST_COMPLETED_DEACTIVATE
+    H_IAC_REQ: REQUEST_COMPLETED
+    NO_ACCESS: REQUEST_COMPLETED_DEACTIVATE
+    NON_RESIDENTIAL: REQUEST_COMPLETED_DEACTIVATE
+    REQUEST_H_QUES: REQUEST_COMPLETED
+    REFUSAL: REQUEST_COMPLETED_DEACTIVATE
+    UNDER_CONST: REQUEST_COMPLETED_DEACTIVATE
+    VACANT: REQUEST_COMPLETED_DEACTIVATE
+    WITHDRAWN: REQUEST_COMPLETED_DEACTIVATE
+  login: gateway@ons
+  password: theGoodOne
+  ssdActionTypes:
+    - FRS
+    - HAS
+    - LCF
+    - SLC
+    - OPN
+    - LFS
+  workingDays: 15
+
+messaging:
+  consumingThreads: 5
+  maxAttempts: 1
+  prefetchCount: 10
+  txSize: 1
+
+poller:
+  fixedDelay: 100
+  fixedRate: false
+  initialDelay: 1000
+  maxMessagesPerPoll: 1
+  supportHoursStart:  # Quotes below are important otherwise the trailing 0 is removed by Spring
+    - '5.30'    # ie 05 h 30
+    - '9.30'
+    - '21.30'
+  supportHoursEnd:  # Quotes below are important otherwise the trailing 0 is removed by Spring
+    - '6.30'    # ie 06 h 30
+    - '10.30'
+    - '22.30'
+
+  supportHoursBuffer: 10  # ie in minutes
+
+rabbitmq:
+  username: guest
+  password: guest
+  host: localhost
+  virtualhost: /
+  queueBrowserReadMax: 10
