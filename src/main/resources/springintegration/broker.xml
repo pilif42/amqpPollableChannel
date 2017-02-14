@@ -7,11 +7,11 @@
   http://www.springframework.org/schema/rabbit
   http://www.springframework.org/schema/rabbit/spring-rabbit-1.6.xsd">
 
-    <rabbit:connection-factory id="connectionFactory" host="${rabbitmq.host}" />
+    <!--  <rabbit:connection-factory id="connectionFactory" host="${rabbitmq.host}" /> -->
 
-    <rabbit:template id="amqpTemplate" connection-factory="connectionFactory" />
+     <!--  <rabbit:template id="amqpTemplate" connection-factory="connectionFactory" /> -->
 
-    <!-- Start of Queues -->
+    <!-- Start of Queues
     <rabbit:queue name="Action.Field" durable="true">
         <rabbit:queue-arguments value-type="java.lang.String">
             <entry key="x-dead-letter-exchange" value="action-deadletter-exchange" />
@@ -26,9 +26,9 @@
     <rabbit:queue name="Action.Feedback" durable="true" />
 
     <rabbit:queue name="Action.DrsGatewayPollerErrors" durable="true" />
-    <!-- End of Queues -->
+    End of Queues -->
 
-    <!-- Start of Exchanges -->
+    <!-- Start of Exchanges
     <rabbit:direct-exchange name="action-outbound-exchange">
         <rabbit:bindings>
             <rabbit:binding queue="Action.Feedback" key="Action.Feedback.binding" />
@@ -53,7 +53,7 @@
             <rabbit:binding queue="Action.DrsGatewayPollerErrors" key="Action.DrsGatewayPollerErrors.binding" />
         </rabbit:bindings>
     </rabbit:direct-exchange>
-    <!-- End of Exchanges -->
+    End of Exchanges -->
 
 </beans>
 
